@@ -55,7 +55,7 @@ if "rekom_list" not in st.session_state:
     st.session_state.rekom_list = []
 
 # ------------------------ SIDEBAR ------------------------
-st.sidebar.markdown("<h2 style='color:#6C63FF;'>🔍 Navigasi</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='color:#6C63FF;'>🔍 Dashboard</h2>", unsafe_allow_html=True)
 halaman = st.sidebar.radio("Pilih halaman:", ["Beranda", "Distribusi Musik", "Rekomendasi Musik"])
 
 # ------------------------ BERANDA ------------------------
