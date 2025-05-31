@@ -62,8 +62,25 @@ if halaman == "Beranda":
 
     st.subheader("Riwayat Pencarian")
     if st.session_state.history:
-        df_history = pd.DataFrame(st.session_state.history, columns=["Judul Musik", "Genre Rekomendasi"])
+        df_history = pd.DataFrame(reversed(st.session_state.history), columns=["Judul Musik", "Genre Rekomendasi"])
         st.table(df_history)
+
+        # Tambahkan hasil pencarian terakhir
+        st.subheader("Hasil Pencarian Terakhir")
+        judul_terakhir, genre_terakhir = st.session_state.history[-1]
+        st.markdown(f"**Judul:** {judul_terakhir}  \n**Genre Rekomendasi:** {genre_terakhir}")
+
+        rekom_terakhir = musik_df[
+            (musik_df["genre"] == genre_terakhir) &
+            (~musik_df["judul_musik"].str.contains(judul_terakhir, case=False, na=False))
+        ].drop_duplicates(subset=["judul_musik", "artist"])
+
+        rekom_sample = rekom_terakhir[["judul_musik", "artist"]].sample(
+            n=min(5, len(rekom_terakhir)), random_state=42
+        )
+
+        st.markdown("**Rekomendasi Musik Serupa:**")
+        st.table(rekom_sample)
     else:
         st.write("Belum ada pencarian.")
 
@@ -104,22 +121,27 @@ elif halaman == "Rekomendasi Musik":
                 st.error("Judul musik tidak ditemukan.")
             else:
                 sampel = hasil.iloc[0]
-                fitur_input = [[sampel["tempo"], sampel["energy"], sampel["danceability"]]]
-                pred_label = rf.predict(fitur_input)[0]
-                pred_genre = label_encoder.inverse_transform([pred_label])[0]
 
-                rekomendasi = musik_df[
-                    (musik_df["genre"] == pred_genre) &
-                    (musik_df["judul_musik"] != sampel["judul_musik"])
-                ]
-                rekomendasi_sample = rekomendasi[["judul_musik", "artist"]].drop_duplicates().sample(
-                    n=min(5, len(rekomendasi)), random_state=42
-                )
+                # Validasi fitur tidak kosong
+                if pd.isnull(sampel[["tempo", "energy", "danceability"]]).any():
+                    st.error("Data musik tidak lengkap untuk rekomendasi.")
+                else:
+                    fitur_input = [[sampel["tempo"], sampel["energy"], sampel["danceability"]]]
+                    pred_label = rf.predict(fitur_input)[0]
+                    pred_genre = label_encoder.inverse_transform([pred_label])[0]
 
-                st.write(f"Rekomendasi berdasarkan genre **{pred_genre}**:")
-                st.table(rekomendasi_sample)
+                    rekomendasi = musik_df[
+                        (musik_df["genre"] == pred_genre) &
+                        (musik_df["judul_musik"] != sampel["judul_musik"])
+                    ]
+                    rekomendasi_sample = rekomendasi[["judul_musik", "artist"]].drop_duplicates().sample(
+                        n=min(5, len(rekomendasi)), random_state=42
+                    )
 
-                st.session_state.history.append([judul_input, pred_genre])
-                # Batasi riwayat hanya 10 entri terakhir
-                if len(st.session_state.history) > 10:
-                    st.session_state.history.pop(0)
+                    st.write(f"Rekomendasi berdasarkan genre **{pred_genre}**:")
+                    st.table(rekomendasi_sample)
+
+                    # Simpan ke riwayat
+                    st.session_state.history.append([judul_input, pred_genre])
+                    if len(st.session_state.history) > 10:
+                        st.session_state.history.pop(0)
