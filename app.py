@@ -163,6 +163,6 @@ elif halaman == "Rekomendasi Musik":
 # ------------------------ FOOTER ------------------------
 st.divider()
 st.markdown(
-    "<p style='text-align:center; color:gray;'>© 2025 Dibuat dengan ❤️ menggunakan Streamlit & Lottie</p>",
+    "<p style='text-align:center; color:gray;'>© 2025 Dibuat Rubby Malik Fajar</p>",
     unsafe_allow_html=True
 )
