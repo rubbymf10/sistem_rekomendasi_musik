@@ -6,9 +6,49 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from streamlit_lottie import st_lottie
+import requests
 
 # Konfigurasi halaman
-st.set_page_config(page_title="🎵 Rekomendasi Musik", layout="wide")
+st.set_page_config(page_title="\U0001F3B5 Rekomendasi Musik", layout="wide")
+
+# CSS Styling
+st.markdown("""
+    <style>
+    .main {
+        background-image: linear-gradient(120deg, #f6f9fc, #e3f2fd);
+        padding: 1.5rem;
+        border-radius: 15px;
+    }
+    h1, h2, h3 {
+        color: #6C63FF !important;
+    }
+    .block-container {
+        padding-top: 2rem;
+    }
+    .stButton>button {
+        background-color: #6C63FF;
+        color: white;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    .stTable {
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Fungsi untuk load Lottie animation
+def load_lottie_url(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+lottie_music = load_lottie_url("https://lottie.host/ae3ac4aa-dce3-4f9f-b93d-92c4b367f4cb/6kNxtU63qq.json")
+lottie_success = load_lottie_url("https://lottie.host/6efb81fa-720a-4d11-bcf7-e5e963cde40b/S4tcXj9RMz.json")
 
 # Fungsi load data
 @st.cache_data
@@ -55,9 +95,14 @@ halaman = st.sidebar.radio("Pilih halaman:", ["Beranda", "Distribusi Musik", "Re
 
 # ------------------------ HALAMAN BERANDA ------------------------
 if halaman == "Beranda":
-    st.markdown("<h1 style='color:#6C63FF;'>🎵 Beranda</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>🎵 Selamat Datang di Rekomendasi Musik</h1>", unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st_lottie(lottie_music, speed=1, height=250, key="music_anim")
+    with col2:
+        st.markdown("### Jelajahi musik favoritmu dan temukan lagu baru berdasarkan genre dan audio!")
+        st.markdown("Aplikasi ini menggunakan **Random Forest** untuk memprediksi genre dan merekomendasikan lagu serupa.")
 
-    # Top 10 Musik Populer
     st.markdown("### 🔥 10 Musik Terpopuler")
     if "popularity" in musik_df.columns:
         top10 = musik_df.sort_values(by="popularity", ascending=False).drop_duplicates("judul_musik").head(10)
@@ -65,9 +110,6 @@ if halaman == "Beranda":
     else:
         st.warning("Kolom 'popularity' tidak ditemukan.")
 
-    st.divider()
-
-    # Riwayat pencarian
     st.markdown("### 🕘 Riwayat Pencarian")
     if st.session_state.history:
         riwayat_display = []
@@ -75,19 +117,16 @@ if halaman == "Beranda":
             riwayat_display.append({
                 "Judul Musik": entry["judul_input"],
                 "Genre Prediksi": entry["genre_prediksi"],
-                "Lagu Rekomendasi": ", ".join(entry["rekomendasi"][:5])  # tampilkan maksimal 5 lagu
+                "Lagu Rekomendasi": ", ".join(entry["rekomendasi"][:5])
             })
         df_history = pd.DataFrame(riwayat_display)
         st.table(df_history)
     else:
         st.info("Belum ada pencarian.")
 
-    st.divider()
-
-    # Tampilkan daftar lagu rekomendasi terakhir secara terpisah
     st.markdown("### 🎵 Lagu Rekomendasi Terbaru")
     if st.session_state.rekom_list:
-        df_rekom = pd.DataFrame(st.session_state.rekom_list, columns=["judul_musik"])
+        df_rekom = pd.DataFrame(st.session_state.rekom_list)
         st.table(df_rekom)
     else:
         st.info("Belum ada lagu rekomendasi yang dicari.")
@@ -134,7 +173,6 @@ elif halaman == "Rekomendasi Musik":
                 pred_label = rf.predict(fitur_input)[0]
                 pred_genre = label_encoder.inverse_transform([pred_label])[0]
 
-                # Filter lagu lain dari genre yang sama, kecuali lagu yang dicari
                 rekomendasi = musik_df[
                     (musik_df["genre"] == pred_genre) &
                     (musik_df["judul_musik"] != sampel["judul_musik"])
@@ -144,10 +182,10 @@ elif halaman == "Rekomendasi Musik":
                 )
 
                 st.success(f"✅ Lagu ditemukan! Genre: **{pred_genre}**")
+                st_lottie(lottie_success, speed=1, height=200)
                 st.markdown("### 🎯 Rekomendasi Lagu Serupa")
                 st.table(rekomendasi_sample)
 
-                # Simpan ke riwayat pencarian
                 rekom_list = rekomendasi_sample["judul_musik"].tolist()
                 st.session_state.history.append({
                     "judul_input": judul_input,
@@ -157,12 +195,14 @@ elif halaman == "Rekomendasi Musik":
                 if len(st.session_state.history) > 10:
                     st.session_state.history.pop(0)
 
-                # Simpan daftar rekomendasi terakhir untuk tampil di beranda
-                st.session_state.rekom_list = rekomendasi_sample[["judul_musik", "artist"]].drop_duplicates().reset_index(drop=True).to_dict('records')
+                st.session_state.rekom_list = rekomendasi_sample.reset_index(drop=True).to_dict('records')
 
 # ------------------------ FOOTER ------------------------
-st.divider()
 st.markdown(
-    "<p style='text-align:center; color:gray;'>© 2025 Dibuat dengan ❤️ menggunakan Streamlit</p>",
-    unsafe_allow_html=True
+    """
+    <hr style="border:1px solid #6C63FF;"/>
+    <p style="text-align:center; color:gray;">
+        🎶 Dibuat Oleh Rubby Malik Fajar | 2025
+    </p>
+    """, unsafe_allow_html=True
 )
