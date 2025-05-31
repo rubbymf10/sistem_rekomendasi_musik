@@ -43,9 +43,11 @@ X_train, X_test, y_train, y_test = train_test_split(fitur, target, test_size=0.2
 rf = RandomForestClassifier(n_estimators=100, random_state=42)
 rf.fit(X_train, y_train)
 
-# Session state untuk riwayat
+# Session state untuk riwayat dan rekomendasi
 if "history" not in st.session_state:
     st.session_state.history = []
+if "rekom_list" not in st.session_state:
+    st.session_state.rekom_list = []
 
 # Sidebar navigasi
 st.sidebar.markdown("<h2 style='color:#6C63FF;'>🔍 Navigasi</h2>", unsafe_allow_html=True)
@@ -77,13 +79,18 @@ if halaman == "Beranda":
             })
         df_history = pd.DataFrame(riwayat_display)
         st.table(df_history)
-        
-        # Tombol hapus riwayat
-        if st.button("🗑️ Hapus Riwayat"):
-            st.session_state.history.clear()
-            st.experimental_rerun()
     else:
         st.info("Belum ada pencarian.")
+
+    st.divider()
+
+    # Tampilkan daftar lagu rekomendasi terakhir secara terpisah
+    st.markdown("### 🎵 Lagu Rekomendasi Terbaru")
+    if st.session_state.rekom_list:
+        df_rekom = pd.DataFrame(st.session_state.rekom_list, columns=["judul_musik"])
+        st.table(df_rekom)
+    else:
+        st.info("Belum ada lagu rekomendasi yang dicari.")
 
 # ------------------------ HALAMAN DISTRIBUSI ------------------------
 elif halaman == "Distribusi Musik":
@@ -140,7 +147,7 @@ elif halaman == "Rekomendasi Musik":
                 st.markdown("### 🎯 Rekomendasi Lagu Serupa")
                 st.table(rekomendasi_sample)
 
-                # Simpan ke riwayat pencarian dalam session state
+                # Simpan ke riwayat pencarian
                 rekom_list = rekomendasi_sample["judul_musik"].tolist()
                 st.session_state.history.append({
                     "judul_input": judul_input,
@@ -149,6 +156,9 @@ elif halaman == "Rekomendasi Musik":
                 })
                 if len(st.session_state.history) > 10:
                     st.session_state.history.pop(0)
+
+                # Simpan daftar rekomendasi terakhir untuk tampil di beranda
+                st.session_state.rekom_list = rekomendasi_sample[["judul_musik", "artist"]].drop_duplicates().reset_index(drop=True).to_dict('records')
 
 # ------------------------ FOOTER ------------------------
 st.divider()
