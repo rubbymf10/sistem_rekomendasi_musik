@@ -43,12 +43,9 @@ X_train, X_test, y_train, y_test = train_test_split(fitur, target, test_size=0.2
 rf = RandomForestClassifier(n_estimators=100, random_state=42)
 rf.fit(X_train, y_train)
 
-# Session state untuk riwayat & hasil terakhir
+# Session state untuk riwayat
 if "history" not in st.session_state:
     st.session_state.history = []
-
-if "last_result" not in st.session_state:
-    st.session_state.last_result = None
 
 # Sidebar navigasi
 st.sidebar.markdown("<h2 style='color:#6C63FF;'>🔍 Navigasi</h2>", unsafe_allow_html=True)
@@ -66,6 +63,8 @@ if halaman == "Beranda":
     else:
         st.warning("Kolom 'popularity' tidak ditemukan.")
 
+    st.divider()
+
     # Riwayat pencarian
     st.markdown("### 🕘 Riwayat Pencarian")
     if st.session_state.history:
@@ -73,17 +72,6 @@ if halaman == "Beranda":
         st.table(df_history)
     else:
         st.info("Belum ada pencarian.")
-
-    # Hasil terakhir
-    st.markdown("### 📌 Hasil Pencarian Terakhir")
-    if st.session_state.last_result:
-        hasil = st.session_state.last_result
-        st.markdown(f"**Judul Musik:** {hasil['judul_input']}")
-        st.markdown(f"**Genre Rekomendasi:** {hasil['pred_genre']}")
-        st.markdown("**Lagu Serupa:**")
-        st.table(hasil["rekomendasi_sample"])
-    else:
-        st.info("Belum ada hasil rekomendasi.")
 
 # ------------------------ HALAMAN DISTRIBUSI ------------------------
 elif halaman == "Distribusi Musik":
@@ -127,7 +115,7 @@ elif halaman == "Rekomendasi Musik":
                 pred_label = rf.predict(fitur_input)[0]
                 pred_genre = label_encoder.inverse_transform([pred_label])[0]
 
-                # Rekomendasi musik
+                # Filter lagu lain dari genre yang sama
                 rekomendasi = musik_df[
                     (musik_df["genre"] == pred_genre) &
                     (musik_df["judul_musik"] != sampel["judul_musik"])
@@ -140,15 +128,10 @@ elif halaman == "Rekomendasi Musik":
                 st.markdown("### 🎯 Rekomendasi Lagu Serupa")
                 st.table(rekomendasi_sample)
 
-                # Simpan ke riwayat & hasil terakhir
+                # Simpan ke riwayat
                 st.session_state.history.append([judul_input, pred_genre])
                 if len(st.session_state.history) > 10:
                     st.session_state.history.pop(0)
-                st.session_state.last_result = {
-                    "judul_input": judul_input,
-                    "pred_genre": pred_genre,
-                    "rekomendasi_sample": rekomendasi_sample
-                }
 
 # ------------------------ FOOTER ------------------------
 st.divider()
