@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-st.set_page_config(page_title="Rekomendasi Musik", layout="wide")
+st.set_page_config(page_title="🎵 Rekomendasi Musik", layout="wide")
 
 # Fungsi load data CSV
 @st.cache_data
@@ -18,7 +18,7 @@ def load_data(csv_path: str):
     df.columns = df.columns.str.strip().str.lower()
     return df
 
-data_path = "musik.csv"  # Pastikan file musik.csv ada di folder project
+data_path = "musik.csv"
 
 # Load data
 try:
@@ -27,7 +27,6 @@ except Exception as e:
     st.error(f"Terjadi kesalahan saat memuat data: {e}")
     st.stop()
 
-# Bersihkan data (hapus baris dengan NA di kolom penting)
 musik_df.dropna(subset=["judul_musik", "artist", "genre", "tempo", "energy", "danceability"], inplace=True)
 
 # Encode genre menjadi label numerik
@@ -39,36 +38,36 @@ fitur = musik_df[["tempo", "energy", "danceability"]]
 target = musik_df["genre_label"]
 X_train, X_test, y_train, y_test = train_test_split(fitur, target, test_size=0.2, random_state=42)
 
-# Latih model Random Forest
 rf = RandomForestClassifier(n_estimators=100, random_state=42)
 rf.fit(X_train, y_train)
 
-# Inisialisasi riwayat pencarian pada session state
 if "history" not in st.session_state:
     st.session_state.history = []
 
 # Sidebar navigasi
-st.sidebar.title("Navigasi")
-halaman = st.sidebar.radio("Pilih halaman:", ["Beranda", "Distribusi Musik", "Rekomendasi Musik"])
+st.sidebar.title("🎛️ Navigasi")
+halaman = st.sidebar.radio("Pilih halaman:", ["🏠 Beranda", "📊 Distribusi Musik", "🔍 Rekomendasi Musik"])
 
-if halaman == "Beranda":
-    st.title("Beranda")
-    st.subheader("10 Musik Terpopuler")
+if halaman == "🏠 Beranda":
+    st.markdown("<h1 style='color:#6C63FF;'>🎶 Beranda</h1>", unsafe_allow_html=True)
+    
+    st.markdown("### 🔝 10 Musik Terpopuler")
     if "popularity" in musik_df.columns:
         top10 = musik_df.sort_values(by="popularity", ascending=False).drop_duplicates("judul_musik").head(10)
-        st.table(top10[["judul_musik", "artist", "popularity"]])
+        st.dataframe(top10[["judul_musik", "artist", "popularity"]], use_container_width=True)
     else:
         st.warning("Kolom 'popularity' tidak ditemukan dalam data.")
+    
+    st.divider()
 
-    st.subheader("Riwayat Pencarian")
+    st.markdown("### 📂 Riwayat Pencarian")
     if st.session_state.history:
         df_history = pd.DataFrame(reversed(st.session_state.history), columns=["Judul Musik", "Genre Rekomendasi"])
-        st.table(df_history)
+        st.dataframe(df_history, use_container_width=True)
 
-        # Tambahkan hasil pencarian terakhir
-        st.subheader("Hasil Pencarian Terakhir")
+        st.markdown("### 🧠 Hasil Pencarian Terakhir")
         judul_terakhir, genre_terakhir = st.session_state.history[-1]
-        st.markdown(f"**Judul:** {judul_terakhir}  \n**Genre Rekomendasi:** {genre_terakhir}")
+        st.success(f"🎧 **Judul:** {judul_terakhir}  \n🎼 **Genre Rekomendasi:** {genre_terakhir}")
 
         rekom_terakhir = musik_df[
             (musik_df["genre"] == genre_terakhir) &
@@ -79,38 +78,39 @@ if halaman == "Beranda":
             n=min(5, len(rekom_terakhir)), random_state=42
         )
 
-        st.markdown("**Rekomendasi Musik Serupa:**")
+        st.markdown("### 🎯 Rekomendasi Musik Serupa:")
         st.table(rekom_sample)
     else:
-        st.write("Belum ada pencarian.")
+        st.info("Belum ada pencarian.")
 
-elif halaman == "Distribusi Musik":
-    st.title("Distribusi Musik")
+elif halaman == "📊 Distribusi Musik":
+    st.markdown("<h1 style='color:#6C63FF;'>📊 Distribusi Musik</h1>", unsafe_allow_html=True)
 
-    st.subheader("10 Artis Terpopuler")
-    if "artist" in musik_df.columns:
-        top_artists = musik_df["artist"].value_counts().head(10)
-        fig, ax = plt.subplots()
-        sns.barplot(x=top_artists.values, y=top_artists.index, ax=ax)
-        ax.set_xlabel("Jumlah Lagu")
-        ax.set_ylabel("Artis")
-        st.pyplot(fig)
+    st.markdown("### 👨‍🎤 10 Artis Terpopuler")
+    top_artists = musik_df["artist"].value_counts().head(10)
+    fig1, ax1 = plt.subplots()
+    sns.barplot(x=top_artists.values, y=top_artists.index, ax=ax1, palette="Blues_r")
+    ax1.set_xlabel("Jumlah Lagu")
+    ax1.set_ylabel("Artis")
+    st.pyplot(fig1)
 
-    st.subheader("10 Genre Terpopuler")
-    if "genre" in musik_df.columns:
-        top_genres = musik_df["genre"].value_counts().head(10)
-        fig, ax = plt.subplots()
-        sns.barplot(x=top_genres.values, y=top_genres.index, ax=ax)
-        ax.set_xlabel("Jumlah Lagu")
-        ax.set_ylabel("Genre")
-        st.pyplot(fig)
+    st.divider()
 
-elif halaman == "Rekomendasi Musik":
-    st.title("Rekomendasi Musik dengan Random Forest")
+    st.markdown("### 🎼 10 Genre Terpopuler")
+    top_genres = musik_df["genre"].value_counts().head(10)
+    fig2, ax2 = plt.subplots()
+    sns.barplot(x=top_genres.values, y=top_genres.index, ax=ax2, palette="Purples_r")
+    ax2.set_xlabel("Jumlah Lagu")
+    ax2.set_ylabel("Genre")
+    st.pyplot(fig2)
+
+elif halaman == "🔍 Rekomendasi Musik":
+    st.markdown("<h1 style='color:#6C63FF;'>🔍 Rekomendasi Musik</h1>", unsafe_allow_html=True)
+    st.markdown("Masukkan judul musik, lalu sistem akan merekomendasikan lagu lain dengan genre serupa.")
 
     with st.form(key="form_rekomendasi"):
-        judul_input = st.text_input("Masukkan judul musik:")
-        submit = st.form_submit_button("Cari rekomendasi")
+        judul_input = st.text_input("🎵 Masukkan judul musik:")
+        submit = st.form_submit_button("🔍 Cari Rekomendasi")
 
     if submit:
         if not judul_input.strip():
@@ -118,11 +118,9 @@ elif halaman == "Rekomendasi Musik":
         else:
             hasil = musik_df[musik_df["judul_musik"].str.contains(judul_input, case=False, na=False)]
             if hasil.empty:
-                st.error("Judul musik tidak ditemukan.")
+                st.error("❌ Judul musik tidak ditemukan.")
             else:
                 sampel = hasil.iloc[0]
-
-                # Validasi fitur tidak kosong
                 if pd.isnull(sampel[["tempo", "energy", "danceability"]]).any():
                     st.error("Data musik tidak lengkap untuk rekomendasi.")
                 else:
@@ -138,10 +136,10 @@ elif halaman == "Rekomendasi Musik":
                         n=min(5, len(rekomendasi)), random_state=42
                     )
 
-                    st.write(f"Rekomendasi berdasarkan genre **{pred_genre}**:")
+                    st.success(f"🎼 Genre Rekomendasi: **{pred_genre}**")
+                    st.markdown("### 🎯 Lagu-lagu Serupa:")
                     st.table(rekomendasi_sample)
 
-                    # Simpan ke riwayat
                     st.session_state.history.append([judul_input, pred_genre])
                     if len(st.session_state.history) > 10:
                         st.session_state.history.pop(0)
