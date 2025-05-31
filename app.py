@@ -68,8 +68,20 @@ if halaman == "Beranda":
     # Riwayat pencarian
     st.markdown("### 🕘 Riwayat Pencarian")
     if st.session_state.history:
-        df_history = pd.DataFrame(st.session_state.history, columns=["Judul Musik", "Genre Rekomendasi"])
+        riwayat_display = []
+        for entry in st.session_state.history:
+            riwayat_display.append({
+                "Judul Musik": entry["judul_input"],
+                "Genre Prediksi": entry["genre_prediksi"],
+                "Lagu Rekomendasi": ", ".join(entry["rekomendasi"][:5])  # tampilkan maksimal 5 lagu
+            })
+        df_history = pd.DataFrame(riwayat_display)
         st.table(df_history)
+        
+        # Tombol hapus riwayat
+        if st.button("🗑️ Hapus Riwayat"):
+            st.session_state.history.clear()
+            st.experimental_rerun()
     else:
         st.info("Belum ada pencarian.")
 
@@ -115,7 +127,7 @@ elif halaman == "Rekomendasi Musik":
                 pred_label = rf.predict(fitur_input)[0]
                 pred_genre = label_encoder.inverse_transform([pred_label])[0]
 
-                # Filter lagu lain dari genre yang sama
+                # Filter lagu lain dari genre yang sama, kecuali lagu yang dicari
                 rekomendasi = musik_df[
                     (musik_df["genre"] == pred_genre) &
                     (musik_df["judul_musik"] != sampel["judul_musik"])
@@ -128,8 +140,13 @@ elif halaman == "Rekomendasi Musik":
                 st.markdown("### 🎯 Rekomendasi Lagu Serupa")
                 st.table(rekomendasi_sample)
 
-                # Simpan ke riwayat
-                st.session_state.history.append([judul_input, pred_genre])
+                # Simpan ke riwayat pencarian dalam session state
+                rekom_list = rekomendasi_sample["judul_musik"].tolist()
+                st.session_state.history.append({
+                    "judul_input": judul_input,
+                    "genre_prediksi": pred_genre,
+                    "rekomendasi": rekom_list
+                })
                 if len(st.session_state.history) > 10:
                     st.session_state.history.pop(0)
 
