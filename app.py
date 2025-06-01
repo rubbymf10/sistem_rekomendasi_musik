@@ -74,16 +74,14 @@ if halaman == "Beranda":
 
     st.divider()
 
-    st.markdown("### 🕘 Riwayat Pencarian")
+    st.markdown("---")
+    st.header("Riwayat Pencarian Rekomendasi")
+    
     if st.session_state.history:
-        df_history = pd.DataFrame([
-            {
-                "Judul Musik": h["judul_input"],
-                "Genre Prediksi": h["genre_prediksi"],
-                "Lagu Rekomendasi": ", ".join(h["rekomendasi"][:5])
-            } for h in st.session_state.history
-        ])
-        st.table(df_history)
+        df_history = pd.DataFrame(st.session_state.history)
+        df_history = df_history[['Judul', 'Artis', 'Genre', 'Prediksi', 'Rekomendasi']]
+        df_history.columns = ['🎵 Judul', '🎤 Artis', '🎼 Genre', '⭐ Prediksi', '🎧 Rekomendasi']
+        st.dataframe(df_history[::-1], use_container_width=True)
     else:
         st.info("Belum ada pencarian.")
 
