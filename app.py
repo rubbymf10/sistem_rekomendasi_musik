@@ -1,168 +1,278 @@
-import os
-import streamlit as st
+import streamlit as st 
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
-from sklearn.ensemble import RandomForestClassifier
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from streamlit_lottie import st_lottie
-import requests
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-# ------------------------ KONFIGURASI HALAMAN ------------------------
-st.set_page_config(page_title="🎵 Rekomendasi Musik", layout="wide")
+# --- Styling dark mode ---
+st.markdown("""
+    <style>
+    .main, .block-container {
+        background-color: #121212;
+        color: #FFFFFF;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .css-1d391kg {background-color: #181818;}
+    .css-1d391kg .css-14xtw13 {color: #b3b3b3;}
+    h1, h2, h3, h4 {
+        color: #1DB954;
+    }
+    .dataframe tbody tr th, .dataframe tbody tr td {
+        border-color: #333333;
+    }
+    button[kind="primary"] {
+        background-color: #1DB954;
+        color: #FFFFFF;
+        border-radius: 20px;
+        border: none;
+        padding: 8px 20px;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1ed760;
+    }
+    .stTextInput>div>div>input {
+        background-color: #222222;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 8px;
+        padding: 8px;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #1DB954;
+      border-radius: 4px;
+    }
+    .music-card {
+        background-color: #282828;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .music-card:hover {
+        background-color: #333333;
+    }
+    .music-cover {
+        width: 50px;
+        height: 50px;
+        color: #1DB954;
+        font-size: 30px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+    .music-info {
+        flex-grow: 1;
+    }
+    .music-title {
+        font-weight: 600;
+        font-size: 16px;
+        margin: 0;
+    }
+    .music-artist {
+        color: #b3b3b3;
+        margin: 0;
+        font-size: 14px;
+    }
+    .popularity {
+        color: #1DB954;
+        font-weight: 700;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# ------------------------ FUNGSI UTAMA ------------------------
+# Load data
 @st.cache_data
-def load_data(csv_path: str):
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"File '{csv_path}' tidak ditemukan di folder {os.getcwd()}")
-    df = pd.read_csv(csv_path, encoding='utf-8')
-    df.columns = df.columns.str.strip().str.lower()
-    return df
+def load_data():
+    df = pd.read_csv('musik.csv')
+    df_clean = df.dropna(subset=['popularity', 'genre', 'subgenre', 'tempo', 'duration_ms', 'energy', 'danceability'])
+    low_thresh = df_clean['popularity'].quantile(0.33)
+    high_thresh = df_clean['popularity'].quantile(0.66)
 
-def load_lottie_url(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
+    def categorize_popularity(pop):
+        if pop <= low_thresh:
+            return 'Rendah'
+        elif pop > high_thresh:
+            return 'Tinggi'
+        else:
+            return np.nan
 
-# ------------------------ LOAD DATA ------------------------
-data_path = "musik.csv"
-try:
-    musik_df = load_data(data_path)
-except Exception as e:
-    st.error(f"❌ Terjadi kesalahan saat memuat data: {e}")
-    st.stop()
+    df_clean['pop_category'] = df_clean['popularity'].apply(categorize_popularity)
+    df_clean = df_clean.dropna(subset=['pop_category'])
+    label_enc = LabelEncoder()
+    df_clean['pop_encoded'] = label_enc.fit_transform(df_clean['pop_category'])
+    return df, df_clean, label_enc
 
-musik_df.dropna(subset=["judul_musik", "artist", "genre", "tempo", "energy", "danceability"], inplace=True)
+df, df_clean, label_enc = load_data()
 
-# ------------------------ PREPROSES DATA ------------------------
-label_encoder = LabelEncoder()
-musik_df["genre_label"] = label_encoder.fit_transform(musik_df["genre"])
+@st.cache_resource
+def train_model(df_clean):
+    tfidf_genre = TfidfVectorizer()
+    tfidf_subgenre = TfidfVectorizer()
+    genre_tfidf = tfidf_genre.fit_transform(df_clean['genre'])
+    subgenre_tfidf = tfidf_subgenre.fit_transform(df_clean['subgenre'])
 
-fitur = musik_df[["tempo", "energy", "danceability"]]
-target = musik_df["genre_label"]
-X_train, X_test, y_train, y_test = train_test_split(fitur, target, test_size=0.2, random_state=42)
+    df_genre_tfidf = pd.DataFrame(genre_tfidf.toarray(), columns=tfidf_genre.get_feature_names_out(), index=df_clean.index)
+    df_subgenre_tfidf = pd.DataFrame(subgenre_tfidf.toarray(), columns=tfidf_subgenre.get_feature_names_out(), index=df_clean.index)
 
-rf = RandomForestClassifier(n_estimators=100, random_state=42)
-rf.fit(X_train, y_train)
+    features_num = ['tempo', 'duration_ms', 'energy', 'danceability']
+    scaler = MinMaxScaler()
+    df_num_scaled = pd.DataFrame(scaler.fit_transform(df_clean[features_num]), columns=features_num, index=df_clean.index)
 
-# ------------------------ SESSION STATE ------------------------
-if "history" not in st.session_state:
+    X = pd.concat([df_genre_tfidf, df_subgenre_tfidf, df_num_scaled], axis=1)
+    y = df_clean['pop_encoded']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return model, tfidf_genre, tfidf_subgenre, scaler, X_test, y_test, y_pred
+
+model, tfidf_genre, tfidf_subgenre, scaler, X_test, y_test, y_pred = train_model(df_clean)
+
+if 'history' not in st.session_state:
     st.session_state.history = []
-if "rekom_list" not in st.session_state:
-    st.session_state.rekom_list = []
+if 'recommendation_table' not in st.session_state:
+    st.session_state.recommendation_table = pd.DataFrame()
 
-# ------------------------ SIDEBAR ------------------------
-st.sidebar.markdown("<h2 style='color:#6C63FF;'>🔍 Dashboard</h2>", unsafe_allow_html=True)
-halaman = st.sidebar.radio("Pilih halaman:", ["Beranda", "Distribusi Musik", "Rekomendasi Musik"])
+with st.sidebar:
+    st.markdown('<h2 style="color:#1DB954; margin-bottom: 15px;">🎵 Dashboard</h2>', unsafe_allow_html=True)
+    halaman = st.radio("", ["Beranda", "Distribusi Musik", "Rekomendasi Musik"], index=0, key="page_select")
 
-# ------------------------ BERANDA ------------------------
+def music_card(title, artist, popularity):
+    st.markdown(f"""
+    <div class="music-card">
+        <div class="music-cover">🎵</div>
+        <div class="music-info">
+            <p class="music-title">{title}</p>
+            <p class="music-artist">{artist}</p>
+        </div>
+        <div class="popularity">{int(popularity)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if halaman == "Beranda":
-    st.markdown("<h1 style='color:#6C63FF;'>🎵 Selamat Datang di Rekomendasi Musik!</h1>", unsafe_allow_html=True)
+    st.header("Top 10 Musik Terpopuler")
+    top10 = df.sort_values(by='popularity', ascending=False).head(10)
+    for _, row in top10.iterrows():
+        music_card(row['judul_musik'], row['artist'], row['popularity'])
 
-    lottie_music = load_lottie_url("https://assets7.lottiefiles.com/packages/lf20_j1adxtyb.json")
-    st_lottie(lottie_music, height=250, key="music")
+    st.markdown("---")
+    st.header("5 Musik Terpopuler dari Setiap Genre")
+    genre_list = df['genre'].dropna().unique()
+    for genre in genre_list:
+        st.subheader(f"🎶 Genre: {genre}")
+        top5_by_genre = df[df['genre'] == genre].sort_values(by='popularity', ascending=False).head(5)
+        for _, row in top5_by_genre.iterrows():
+            music_card(row['judul_musik'], row['artist'], row['popularity'])
 
-    st.markdown("### 🔥 10 Musik Terpopuler")
-    if "popularity" in musik_df.columns:
-        top10 = musik_df.sort_values(by="popularity", ascending=False).drop_duplicates("judul_musik").head(10)
-        st.table(top10[["judul_musik", "artist", "popularity"]])
-    else:
-        st.warning("Kolom 'popularity' tidak ditemukan.")
-
-    st.divider()
-
-    st.markdown("### 🕘 Riwayat Pencarian")
+    st.markdown("---")
+    st.header("Riwayat Pencarian Rekomendasi")
     if st.session_state.history:
-        df_history = pd.DataFrame([
-            {
-                "Judul Musik": h["judul_input"],
-                "Genre Prediksi": h["genre_prediksi"],
-                "Lagu Rekomendasi": ", ".join(h["rekomendasi"][:5])
-            } for h in st.session_state.history
-        ])
-        st.table(df_history)
+        for h in reversed(st.session_state.history[-5:]):
+            st.markdown(f"- **{h['Judul']}** oleh {h['Artis']} (Genre: {h['Genre']}, Prediksi: {h['Prediksi']})")
     else:
         st.info("Belum ada pencarian.")
 
-    st.divider()
-    st.markdown("### 🎵 Lagu Rekomendasi Terbaru")
-    if st.session_state.rekom_list:
-        df_rekom = pd.DataFrame(st.session_state.rekom_list)
-        st.table(df_rekom)
+    st.markdown("---")
+    st.header("🎧 Rekomendasi Genre Terakhir")
+    if not st.session_state.recommendation_table.empty:
+        df_show = st.session_state.recommendation_table.sort_values(by='popularity', ascending=False)
+        for _, row in df_show.iterrows():
+            music_card(row['judul_musik'], row['artist'], row['popularity'])
     else:
-        st.info("Belum ada lagu rekomendasi.")
+        st.info("Belum ada rekomendasi genre ditampilkan.")
 
-# ------------------------ DISTRIBUSI MUSIK ------------------------
+    if st.button("Reset Riwayat Pencarian"):
+        st.session_state.history = []
+        st.session_state.recommendation_table = pd.DataFrame()
+        st.experimental_rerun()
+
 elif halaman == "Distribusi Musik":
-    st.markdown("<h1 style='color:#6C63FF;'>📊 Distribusi Musik</h1>", unsafe_allow_html=True)
-
-    st.markdown("### 🎤 10 Artis Terpopuler")
-    top_artists = musik_df["artist"].value_counts().head(10)
-    fig1, ax1 = plt.subplots()
-    sns.barplot(x=top_artists.values, y=top_artists.index, ax=ax1, palette="coolwarm")
-    ax1.set_xlabel("Jumlah Lagu")
-    ax1.set_ylabel("Artis")
+    st.header("Distribusi Musik")
+    st.subheader("10 Artis Terpopuler")
+    top_artists = df['artist'].value_counts().head(10)
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    sns.barplot(x=top_artists.values, y=top_artists.index, ax=ax1, palette="Greens_d")
+    ax1.set_xlabel('Jumlah Lagu')
+    ax1.set_ylabel('Artis')
     st.pyplot(fig1)
 
-    st.markdown("### 🎼 10 Genre Terpopuler")
-    top_genres = musik_df["genre"].value_counts().head(10)
-    fig2, ax2 = plt.subplots()
-    sns.barplot(x=top_genres.values, y=top_genres.index, ax=ax2, palette="viridis")
-    ax2.set_xlabel("Jumlah Lagu")
-    ax2.set_ylabel("Genre")
+    st.subheader("10 Genre Terpopuler")
+    top_genres = df['genre'].value_counts().head(10)
+    fig2, ax2 = plt.subplots(figsize=(8, 4))
+    sns.barplot(x=top_genres.values, y=top_genres.index, ax=ax2, palette="Greens_d")
+    ax2.set_xlabel('Jumlah Lagu')
+    ax2.set_ylabel('Genre')
     st.pyplot(fig2)
 
-# ------------------------ REKOMENDASI MUSIK ------------------------
 elif halaman == "Rekomendasi Musik":
-    st.markdown("<h1 style='color:#6C63FF;'>🎧 Rekomendasi Musik</h1>", unsafe_allow_html=True)
-    st.markdown("Masukkan judul musik untuk menemukan lagu serupa berdasarkan fitur audio dan genre.")
+    st.header("Rekomendasi Musik Berdasarkan Judul")
 
-    with st.form(key="form_rekomendasi"):
-        judul_input = st.text_input("🎵 Masukkan judul musik:")
-        submit = st.form_submit_button("🔍 Cari rekomendasi")
+    judul_list = df_clean['judul_musik'].dropna().unique()[:50]
+    pilihan = st.selectbox("Atau pilih dari daftar judul musik", options=judul_list)
+    manual_input = st.text_input("Atau ketik judul musik secara manual (opsional)")
+    judul = manual_input if manual_input.strip() else pilihan
 
-    if submit:
-        if not judul_input.strip():
-            st.warning("⚠️ Masukkan judul musik yang valid.")
+    if st.button("Rekomendasikan"):
+        if not judul.strip():
+            st.warning("Silakan masukkan judul musik terlebih dahulu.")
         else:
-            hasil = musik_df[musik_df["judul_musik"].str.contains(judul_input, case=False, na=False)]
-            if hasil.empty:
-                st.error("❌ Judul musik tidak ditemukan.")
+            lagu = df_clean[df_clean['judul_musik'].str.lower() == judul.lower()]
+            if lagu.empty:
+                st.warning("Judul tidak ditemukan dalam dataset.")
             else:
-                sampel = hasil.iloc[0]
-                fitur_input = [[sampel["tempo"], sampel["energy"], sampel["danceability"]]]
-                pred_label = rf.predict(fitur_input)[0]
-                pred_genre = label_encoder.inverse_transform([pred_label])[0]
+                fitur = lagu.iloc[0]
+                genre = fitur['genre']
+                subgenre = fitur['subgenre']
+                tempo = fitur['tempo']
+                duration_ms = fitur['duration_ms']
+                energy = fitur['energy']
+                danceability = fitur['danceability']
+                artist = fitur['artist']
 
-                rekomendasi = musik_df[
-                    (musik_df["genre"] == pred_genre) &
-                    (musik_df["judul_musik"] != sampel["judul_musik"])
-                ]
-                rekomendasi_sample = rekomendasi[["judul_musik", "artist"]].drop_duplicates().sample(
-                    n=min(5, len(rekomendasi)), random_state=42
-                )
+                genre_tfidf = tfidf_genre.transform([genre])
+                subgenre_tfidf = tfidf_subgenre.transform([subgenre])
+                features_num = scaler.transform([[tempo, duration_ms, energy, danceability]])
 
-                st.success(f"✅ Lagu ditemukan! Genre: **{pred_genre}**")
-                st.markdown("### 🎯 Rekomendasi Lagu Serupa")
-                st.table(rekomendasi_sample)
+                X_input = np.hstack([
+                    genre_tfidf.toarray(),
+                    subgenre_tfidf.toarray(),
+                    features_num
+                ])
 
-                rekom_list = rekomendasi_sample["judul_musik"].tolist()
+                pred = model.predict(X_input)[0]
+                kategori = label_enc.inverse_transform([pred])[0]
+
+                st.success(f"Musik '{judul}' oleh {artist} diprediksi memiliki popularitas: **{kategori}**")
+
+                df_rekomendasi = df_clean[df_clean['genre'].str.lower() == genre.lower()]
+                df_rekomendasi = df_rekomendasi.sort_values(by='popularity', ascending=False).head(5)
+
                 st.session_state.history.append({
-                    "judul_input": judul_input,
-                    "genre_prediksi": pred_genre,
-                    "rekomendasi": rekom_list
+                    'Judul': judul,
+                    'Artis': artist,
+                    'Genre': genre,
+                    'Subgenre': subgenre,
+                    'Prediksi': kategori,
+                    'Rekomendasi': ', '.join(df_rekomendasi['judul_musik'].head(3).tolist())
                 })
-                if len(st.session_state.history) > 10:
-                    st.session_state.history.pop(0)
 
-                st.session_state.rekom_list = rekomendasi_sample.to_dict("records")
+                st.session_state.recommendation_table = df_rekomendasi
 
-# ------------------------ FOOTER ------------------------
-st.divider()
-st.markdown(
-    "<p style='text-align:center; color:gray;'>© 2025 Dibuat Rubby Malik Fajar</p>",
-    unsafe_allow_html=True
-)
+                st.subheader("🎧 Musik Serupa Berdasarkan Genre")
+                for _, row in df_rekomendasi.iterrows():
+                    music_card(row['judul_musik'], row['artist'], row['popularity'])
