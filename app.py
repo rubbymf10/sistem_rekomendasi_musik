@@ -120,7 +120,7 @@ df, df_clean, label_enc = load_data()
 
 @st.cache_resource
 def train_model(df_clean):
-    tfidf_genre = TfidfVectorizer()
+    tfidf_genre = TtfidfVectorizer()
     tfidf_subgenre = TfidfVectorizer()
     genre_tfidf = tfidf_genre.fit_transform(df_clean['genre'])
     subgenre_tfidf = tfidf_subgenre.fit_transform(df_clean['subgenre'])
@@ -222,7 +222,7 @@ elif halaman == "Distribusi Musik":
 elif halaman == "Rekomendasi Musik":
     st.header("Rekomendasi Musik Berdasarkan Judul")
 
-    judul_list = df_clean['judul_musik'].dropna().unique()[:50]
+    judul_list = df_clean['judul_musik'].dropna().unique()
     pilihan = st.selectbox("Atau pilih dari daftar judul musik", options=judul_list)
     manual_input = st.text_input("Atau ketik judul musik secara manual (opsional)")
     judul = manual_input if manual_input.strip() else pilihan
