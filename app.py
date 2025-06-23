@@ -154,7 +154,7 @@ if 'recommendation_table' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.markdown('<h2 style="color:#1DB954; margin-bottom: 15px;">\U0001F3B5 Dashboard</h2>', unsafe_allow_html=True)
-    halaman = st.radio("", ["Beranda", "Distribusi Musik", "Rekomendasi Musik"], index=0, key="page_select")
+    halaman = st.radio("", ["Beranda", "Distribusi Musik", "Rekomendasi Musik", "Histori"], index=0, key="page_select")
 
 # --- Komponen UI Musik ---
 def music_card(title, artist, popularity):
@@ -185,7 +185,8 @@ if halaman == "Beranda":
         for _, row in top5_by_genre.iterrows():
             music_card(row['judul_musik'], row['artist'], row['popularity'])
 
-    st.markdown("---")
+# --- Halaman Histori ---
+if halaman == "Histori":
     st.header("Riwayat Pencarian Rekomendasi")
     if st.session_state.history:
         for h in reversed(st.session_state.history[-5:]):
