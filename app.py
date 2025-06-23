@@ -207,6 +207,7 @@ if halaman == "Histori":
         st.session_state.history = []
         st.session_state.recommendation_table = pd.DataFrame()
         st.experimental_rerun()
+        st.stop()
 
 # --- Halaman Rekomendasi Musik ---
 if halaman == "Rekomendasi Musik":
