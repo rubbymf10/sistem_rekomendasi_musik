@@ -170,7 +170,7 @@ def music_card(title, artist, popularity):
     """, unsafe_allow_html=True)
 
 # --- Halaman Rekomendasi Musik ---
-elif halaman == "Rekomendasi Musik":
+if halaman == "Rekomendasi Musik":
     st.header("Rekomendasi Musik Berdasarkan Judul")
 
     judul_list = df_clean['judul_musik'].dropna().unique()
