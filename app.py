@@ -219,8 +219,8 @@ elif halaman == "Rekomendasi Musik":
             df_rekom_genre = df_clean[df_clean['genre'].str.lower() == genre.lower()].sort_values(by='popularity', ascending=False).head(5)
             st.subheader("🎧 Rekomendasi Berdasarkan Genre yang Sama")
             for _, row in df_rekom_genre.iterrows():
-                st.markdown(f"**Genre: {row['genre']}**")
                 music_card(row['judul_musik'], row['artist'], row['popularity'])
+                st.caption(f"Genre: {row['genre']}")
 
             top_indices = similarities.argsort()[::-1][1:6]
             df_rekom_judul = df_clean.iloc[top_indices]
