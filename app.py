@@ -204,9 +204,11 @@ if halaman == "Histori":
         st.info("Belum ada rekomendasi genre ditampilkan.")
 
     if st.button("Reset Riwayat Pencarian"):
-        st.session_state.history = []
-        st.session_state.recommendation_table = pd.DataFrame()
-        st.experimental_rerun()
+    st.session_state.history = []
+    st.session_state.recommendation_table = pd.DataFrame()
+    st.experimental_rerun()
+    st.stop()
+
 
 # --- Halaman Rekomendasi Musik ---
 if halaman == "Rekomendasi Musik":
