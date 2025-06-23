@@ -154,7 +154,7 @@ if 'recommendation_table' not in st.session_state:
 # --- Sidebar ---
 with st.sidebar:
     st.markdown('<h2 style="color:#1DB954; margin-bottom: 15px;">\U0001F3B5 Dashboard</h2>', unsafe_allow_html=True)
-    halaman = st.radio("", ["Beranda", "Rekomendasi Musik", "Histori"], index=0, key="page_select")
+    halaman = st.radio("", ["Beranda", "Distribusi Musik", "Rekomendasi Musik", "Histori"], index=0, key="page_select")
 
 # --- Komponen UI Musik ---
 def music_card(title, artist, popularity):
@@ -204,11 +204,9 @@ if halaman == "Histori":
         st.info("Belum ada rekomendasi genre ditampilkan.")
 
     if st.button("Reset Riwayat Pencarian"):
-    st.session_state.history = []
-    st.session_state.recommendation_table = pd.DataFrame()
-    st.experimental_rerun()
-    st.stop()
-
+        st.session_state.history = []
+        st.session_state.recommendation_table = pd.DataFrame()
+        st.experimental_rerun()
 
 # --- Halaman Rekomendasi Musik ---
 if halaman == "Rekomendasi Musik":
