@@ -195,7 +195,7 @@ if halaman == "Histori":
         st.info("Belum ada pencarian.")
 
     st.markdown("---")
-    st.header("🎧 Rekomendasi Genre Terakhir")
+    st.header("🎧 Hasil Rekomendasi Terakhir")
     if not st.session_state.recommendation_table.empty:
         df_show = st.session_state.recommendation_table.sort_values(by='popularity', ascending=False)
         for _, row in df_show.iterrows():
